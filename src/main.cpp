@@ -21,9 +21,8 @@ void setup() {
 void loop() {
   Serial.print(analogRead(R1_PIN)); // 235 — 397; max 1024
   Serial.print(" ");
-  // Serial.print(analogRead(R2_PIN));
-  // Serial.println();
+  Serial.print(analogRead(R2_PIN));
+  Serial.println();
 
-  // printf("%d   hello  ", 100);
   delay(200);
 }
