@@ -3,8 +3,8 @@
 #define R1_PIN A2
 #define R2_PIN A3
 #define VIBRO_PIN 2
-#define SW1_PIN 5 /* 220v Relay — Middle light */
-#define SW2_PIN 10 /* 12v Transistor — LED-stripe highlight */
+#define SW1_PIN 10 /* 12v Transistor — LED-stripe highlight */
+#define SW2_PIN 5 /* 220v Relay — Middle light */
 
 const byte MIN_R_VAL = 300u;
 const byte MAX_R_VAL = 600u;
@@ -21,9 +21,10 @@ enum STATE {
   S_SIG,
 };
 
-int input = 0;
 STATE state = S_UNKNOWN, prev_state = S_NULL;
 bool is_left = NULL;
+char input_mode;
+// char vibro_input_buffer[255] = "";
 
 void print_state () {
   switch (state) {
@@ -31,6 +32,19 @@ void print_state () {
     case S_IDLE: Serial.println("idle"); break;
     case S_TRY: Serial.print("try "); Serial.println(is_left ? 'L' : 'R'); break;
     case S_SIG: Serial.print("sig "); Serial.println(is_left ? 'L' : 'R'); break;
+  }
+}
+
+template<class... Args>
+void vibrate (Args... args) {
+  int durations[8] = {args...};
+  size_t count = sizeof...(Args);
+
+  for (size_t i = 0; i < count; ++i) {
+    digitalWrite(VIBRO_PIN, HIGH);
+    delay(durations[i]);
+    digitalWrite(VIBRO_PIN, LOW);
+    delay(durations[i] == 33 ? 11 : 33);
   }
 }
 
@@ -101,13 +115,15 @@ void loop() {
 
   case S_SIG:
     Serial.println("YES!");
+    Serial.print("turn "); Serial.println(is_left ? 'L' : 'R');
+
     print_state();
-    
+
     state = S_IDLE;
 
     delay(33);
     digitalWrite(VIBRO_PIN, HIGH);
-    delay(66);
+    delay(33);
     digitalWrite(VIBRO_PIN, LOW);
     delay(33);
 
@@ -129,14 +145,32 @@ void loop() {
 
   delay(5);
 
-  if (Serial.available()>0){
-    input = Serial.read();
+  if (Serial.available()>0) {
+    char input = Serial.read();
     Serial.println(input);
-    input = input - 48;
-    if (input < 0) input = 0;
-    if (input == 1) digitalWrite(SW1_PIN, !digitalRead(SW1_PIN));
-    if (input == 2) digitalWrite(SW2_PIN, !digitalRead(SW2_PIN));
+    if (input == '1' || input == '2' || input == 'v') {
+      input_mode = input;
+    }
+    else if ((input_mode == '1' || input_mode == '2') && (input == 'H' || input == 'L')) {
+      int PIN = input_mode == '1' ? SW1_PIN : SW2_PIN;
+      digitalWrite(PIN, input == 'H' ? HIGH : LOW);
+      input_mode = 0;
+    }
+    else if (input_mode == 'v') {
+      input_mode = 0;
+      if (input == 'S') vibrate(66);
+      else if (input == 'L') vibrate(133);
+      else if (input == 'B') vibrate(133, 33);
+      else if (input == 'E') vibrate(33, 33, 33);
+      // size_t len = strlen(vibro_input_buffer);
+      // if (input == 'z' || len == 255) {
+      //   handle_vibro_command(vibro_input_buffer);
+      //   strcpy(vibro_input_buffer, "");
+      // } else {
+      //   vibro_input_buffer[len] = input;
+      //   vibro_input_buffer[len + 1] = '\0';
+      // }
+    }
     Serial.println(input);
   }
-
 }
